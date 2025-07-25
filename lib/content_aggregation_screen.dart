@@ -1,15 +1,29 @@
 // Step 3: Content Aggregation
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart'; // Import for launching URLs
+import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import Cloud Firestore
 import 'post_content_screen.dart'; // Import the post content screen
 import 'masses_social_content_screen.dart'; // Import the masses social content screen
 import 'models/content_notification.dart'; // Import the ContentNotification model
+import 'models/user_data.dart'; // Import UserData model
 
-class ContentAggregationScreen extends StatelessWidget {
+class ContentAggregationScreen extends StatefulWidget { // Change to StatefulWidget
   // Receive selected accounts as an argument
   final List<String>? selectedAccounts;
 
   const ContentAggregationScreen({Key? key, this.selectedAccounts}) : super(key: key);
+
+  @override
+  _ContentAggregationScreenState createState() => _ContentAggregationScreenState();
+}
+
+class _ContentAggregationScreenState extends State<ContentAggregationScreen> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  int _selectedIndex = 0; // To track the selected tab in BottomNavigationBar
+  List<ContentNotification> _savedNotifications = []; // List to hold saved notifications
 
   // Function to launch a URL (deep link)
   Future<void> _launchUrl(String url) async {
@@ -21,13 +35,106 @@ class ContentAggregationScreen extends StatelessWidget {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Access the selected accounts passed as arguments
-    final List<String> accounts = (ModalRoute.of(context)?.settings.arguments as List<String>?) ?? selectedAccounts ?? [];
+  // Function to save a notification to Firestore
+  Future<void> _saveNotification(ContentNotification notification) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      try {
+        // Convert notification to a map to store in Firestore
+        final notificationMap = {
+          'creatorName': notification.creatorName,
+          'title': notification.title,
+          'timeAgo': notification.timeAgo,
+          'sourcePlatform': notification.sourcePlatform,
+          'thumbnailUrl': notification.thumbnailUrl,
+          'deepLinkUrl': notification.deepLinkUrl,
+        };
 
-    // Simulate some placeholder notification data
-    final List<ContentNotification> notifications = [
+        // Get the current user document
+        final userDocRef = _firestore.collection('users').doc(user.uid);
+        final userDoc = await userDocRef.get();
+
+        if (userDoc.exists) {
+          // Get the current saved content list
+          UserData userData = UserData.fromFirestore(userDoc.data()!);
+          List<Map<String, dynamic>> currentSavedContent = List<Map<String, dynamic>>.from(userData.savedContent);
+
+          // Add the new notification map if it's not already saved (basic check)
+          bool alreadySaved = currentSavedContent.any((saved) => saved['deepLinkUrl'] == notification.deepLinkUrl);
+
+          if (!alreadySaved) {
+            currentSavedContent.add(notificationMap);
+            // Update the user document with the new saved content list
+            await userDocRef.update({'savedContent': currentSavedContent});
+            print('Notification saved to Firestore');
+             // Refresh saved notifications list if on the Saved Content tab
+             if (_selectedIndex == 1) {
+                 _fetchSavedNotifications();
+             }
+          } else {
+             print('Notification already saved');
+          }
+
+        } else {
+          print('User document not found');
+        }
+      } catch (e) {
+        print('Error saving notification: $e');
+      }
+    }
+  }
+
+   // Function to fetch saved notifications from Firestore
+   Future<void> _fetchSavedNotifications() async {
+      final user = _auth.currentUser;
+      if (user != null) {
+         try {
+            final userDoc = await _firestore.collection('users').doc(user.uid).get();
+            if (userDoc.exists) {
+               UserData userData = UserData.fromFirestore(userDoc.data()!);
+               setState(() {
+                  _savedNotifications = userData.savedContent.map((data) => ContentNotification.fromMap(data)).toList();
+               });
+            } else {
+               setState(() {
+                 _savedNotifications = [];
+               });
+            }
+         } catch (e) {
+            print('Error fetching saved notifications: $e');
+             setState(() {
+               _savedNotifications = [];
+             });
+         }
+      }
+   }
+
+  // Helper to determine if an account is selected (used for icon color)
+  bool _isAccountSelected(String platformName, List<String> selectedAccounts) {
+    return selectedAccounts.contains(platformName);
+  }
+
+  // Helper widget to build platform icons with selection indication
+  Widget _buildPlatformIcon(String platformName, IconData iconData, bool isSelected) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0), // Adjust spacing
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: isSelected ? Border.all(color: Colors.blue, width: 2.0) : null, // Placeholder selected color
+        ),
+        child: CircleAvatar(
+          radius: 20, // Adjust size as needed
+          backgroundColor: Colors.grey[800], // Placeholder background color
+          child: Icon(iconData, color: isSelected ? Colors.blue : Colors.white, size: 25), // Placeholder icon color
+           // TODO: Replace with actual platform logos/icons and potentially colorful rings
+        ),
+      ),
+    );
+  }
+
+  // Simulate some placeholder notification data (moved inside State for potential future use)
+  final List<ContentNotification> _notifications = [
       ContentNotification(
         creatorName: 'Creator 1',
         title: 'New Video Dropped!',
@@ -69,6 +176,24 @@ class ContentAggregationScreen extends StatelessWidget {
         deepLinkUrl: 'https://www.tiktok.com/', // Placeholder TikTok link
       ),
     ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Fetch saved notifications when the screen initializes if on the Saved Content tab
+     if (_selectedIndex == 1) {
+        _fetchSavedNotifications();
+     }
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+    // Access the selected accounts passed as arguments
+    final List<String> accounts = (ModalRoute.of(context)?.settings.arguments as List<String>?) ?? widget.selectedAccounts ?? [];
+
+    // Determine which list to display
+    final List<ContentNotification> displayedNotifications = _selectedIndex == 1 ? _savedNotifications : _notifications; // Show saved or all notifications
 
     return Scaffold(
       appBar: AppBar(
@@ -113,12 +238,12 @@ class ContentAggregationScreen extends StatelessWidget {
                 children: [
                    SizedBox(width: 4), // Add some spacing at the beginning
                   // Display ALL supported platform icons, with visual indication for selected ones
-                  _buildPlatformIcon('apple', Icons.apple, accounts.contains('apple')), // Apple
-                  _buildPlatformIcon('youtube', Icons.video_library, accounts.contains('youtube')), // YouTube
-                  _buildPlatformIcon('facebook', Icons.facebook, accounts.contains('facebook')), // Facebook
-                  _buildPlatformIcon('tiktok', Icons.tiktok, accounts.contains('tiktok')), // TikTok (using placeholder icon)
-                  _buildPlatformIcon('instagram', Icons.camera_alt, accounts.contains('instagram')), // Instagram (using placeholder icon)
-                  _buildPlatformIcon('pinterest', Icons.pinterest, accounts.contains('pinterest')), // Pinterest (using placeholder icon)
+                  _buildPlatformIcon('apple', Icons.apple, _isAccountSelected('apple', accounts)), // Apple
+                  _buildPlatformIcon('youtube', Icons.video_library, _isAccountSelected('youtube', accounts)), // YouTube
+                  _buildPlatformIcon('facebook', Icons.facebook, _isAccountSelected('facebook', accounts)), // Facebook
+                  _buildPlatformIcon('tiktok', Icons.tiktok, _isAccountSelected('tiktok', accounts)), // TikTok (using placeholder icon)
+                  _buildPlatformIcon('instagram', Icons.camera_alt, _isAccountSelected('instagram', accounts)), // Instagram (using placeholder icon)
+                  _buildPlatformIcon('pinterest', Icons.pinterest, _isAccountSelected('pinterest', accounts)), // Pinterest (using placeholder icon)
                   // Add more icons for other supported platforms
                    SizedBox(width: 4), // Add some spacing at the end
                 ],
@@ -131,7 +256,10 @@ class ContentAggregationScreen extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Your Favorites', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  _selectedIndex == 1 ? 'Saved Content' : 'Your Favorites', // Change title based on selected tab
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 TextButton(onPressed: () {}, child: Text('List View')),
               ],
             ),
@@ -139,9 +267,9 @@ class ContentAggregationScreen extends StatelessWidget {
           // Content Notifications List
           Expanded(
             child: ListView.builder(
-              itemCount: notifications.length, // Use the number of placeholder notifications
+              itemCount: displayedNotifications.length, // Use the number of displayed notifications
               itemBuilder: (context, index) {
-                final notification = notifications[index];
+                final notification = displayedNotifications[index];
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: ListTile(
@@ -154,12 +282,24 @@ class ContentAggregationScreen extends StatelessWidget {
                         // You might add a small icon for the source platform here as well
                       ],
                     ),
-                    trailing: Container(
-                      width: 80,
-                      height: 60,
-                      color: Colors.grey[300],
-                       child: Center(child: Icon(Icons.play_arrow)), // Placeholder thumbnail area
-                      // TODO: Display actual thumbnail using notification.thumbnailUrl
+                    trailing: Row( // Add Row for multiple trailing icons
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton( // Save/Unsave Icon
+                           // TODO: Determine if the notification is already saved and show the appropriate icon/color
+                           icon: Icon(Icons.bookmark_border), // Placeholder icon
+                           onPressed: () {
+                             _saveNotification(notification); // Call save function
+                           },
+                        ),
+                         Container(
+                           width: 80,
+                           height: 60,
+                           color: Colors.grey[300],
+                            child: Center(child: Icon(Icons.play_arrow)), // Placeholder thumbnail area
+                           // TODO: Display actual thumbnail using notification.thumbnailUrl
+                         ),
+                      ],
                     ),
                     onTap: () { // Implement tap to launch deep link
                       _launchUrl(notification.deepLinkUrl);
@@ -171,7 +311,7 @@ class ContentAggregationScreen extends StatelessWidget {
           ),
           // Bottom Navigation Bar
           BottomNavigationBar(
-            items: const <BottomNavigationBarBarItem>[
+            items: const <BottomNavigationBarItem>[
               BottomNavigationBarItem(
                 icon: Icon(Icons.edit), // Edit Favorites
                 label: 'Edit Favorites',
@@ -189,15 +329,20 @@ class ContentAggregationScreen extends StatelessWidget {
                 label: 'Post Content',
               ),
             ],
-            currentIndex: 0, // Placeholder: set to the index of the active tab
+            currentIndex: _selectedIndex, // Set the current index
             selectedItemColor: Colors.blue, // Placeholder color
             unselectedItemColor: Colors.grey, // Placeholder color
-            onTap: (index) { // Placeholder onTap
-              // Handle navigation to different sections
-              if (index == 3) { // Index 3 corresponds to Post Content
+            onTap: (index) { // Handle tap on BottomNavigationBar items
+              setState(() {
+                _selectedIndex = index;
+              });
+               // Navigate or perform action based on selected index
+              if (index == 1) { // Saved Content tab
+                _fetchSavedNotifications(); // Fetch saved notifications
+              } else if (index == 3) { // Post Content tab
                  Navigator.pushNamed(context, '/postContent'); // Navigate to Post Content Screen
               }
-              // TODO: Implement navigation for other bottom navigation items
+               // TODO: Implement logic for other tabs (Edit Favorites, Share Content)
             },
           ),
         ],
@@ -223,4 +368,29 @@ class ContentAggregationScreen extends StatelessWidget {
       ),
     );
   }
+
+  // Helper method to create ContentNotification from a map (for reading from Firestore)
+  // Add this factory method to your ContentNotification class definition as well
+  // factory ContentNotification.fromMap(Map<String, dynamic> map) {
+  //   return ContentNotification(
+  //     creatorName: map['creatorName'] ?? '',
+  //     title: map['title'] ?? '',
+  //     timeAgo: map['timeAgo'] ?? '',
+  //     sourcePlatform: map['sourcePlatform'] ?? '',
+  //     thumbnailUrl: map['thumbnailUrl'] ?? '',
+  //     deepLinkUrl: map['deepLinkUrl'] ?? '',
+  //   );
+  // }
 }
+
+// Add this factory method to your ContentNotification class definition in models/content_notification.dart
+// factory ContentNotification.fromMap(Map<String, dynamic> map) {
+//   return ContentNotification(
+//     creatorName: map['creatorName'] ?? '',
+//     title: map['title'] ?? '',
+//     timeAgo: map['timeAgo'] ?? '',
+//     sourcePlatform: map['sourcePlatform'] ?? '',
+//     thumbnailUrl: map['thumbnailUrl'] ?? '',
+//     deepLinkUrl: map['deepLinkUrl'] ?? '',
+//   );
+// }
