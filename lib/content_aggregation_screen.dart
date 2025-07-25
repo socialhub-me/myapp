@@ -238,12 +238,12 @@ class _ContentAggregationScreenState extends State<ContentAggregationScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
+          const Padding(
+            padding: EdgeInsets.all(8.0),
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Search',
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30.0),
                   borderSide: BorderSide.none,
@@ -366,45 +366,47 @@ class _ContentAggregationScreenState extends State<ContentAggregationScreen> {
               },
             ),
           ),
-          BottomNavigationBar(
-            items: <BottomNavigationBarItem>[
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.edit),
-                label: 'Edit Favorites',
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.bookmark),
-                label: 'Saved Content',
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.share),
-                label: 'Share Content',
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.post_add),
-                label: 'Post Content',
-              ),
-            ],
-            currentIndex: _selectedIndex,
-            selectedItemColor: Colors.blue,
-            unselectedItemColor: Colors.grey,
-            onTap: (index) {
-              setState(() {
-                _selectedIndex = index;
-              });
-              if (index == 1) {
-                _fetchSavedNotifications();
-              } else if (index == 3) {
-                Navigator.pushNamed(context, '/postContent');
-              }
-              // TODO: Implement logic for other tabs (Edit Favorites, Share Content)
-            },
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        // Ensure this is outside the Column and inside the Scaffold
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.edit),
+            label: 'Edit Favorites',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bookmark),
+            label: 'Saved Content',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.share),
+            label: 'Share Content',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.post_add),
+            label: 'Post Content',
           ),
         ],
+        currentIndex: _selectedIndex, // Set the current index
+        selectedItemColor: Colors.blue, // Placeholder color
+        unselectedItemColor: Colors.grey, // Placeholder color
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+          if (index == 1) {
+            _fetchSavedNotifications();
+          } else if (index == 3) {
+            // Ensure '/postContent' route is defined in main.dart
+            Navigator.pushNamed(context, '/postContent');
+          }
+        },
       ),
     );
   }
 
+  // Function to remove a notification from saved list in Firestore
   Future<void> _removeSavedNotification(
     ContentNotification notification,
   ) async {
@@ -419,10 +421,12 @@ class _ContentAggregationScreenState extends State<ContentAggregationScreen> {
           List<Map<String, dynamic>> currentSavedContent =
               List<Map<String, dynamic>>.from(userData.savedContent);
 
+          // Find and remove the notification by deep link URL
           currentSavedContent.removeWhere(
             (saved) => saved['deepLinkUrl'] == notification.deepLinkUrl,
           );
 
+          // Update the user document
           await userDocRef.update({'savedContent': currentSavedContent});
           log('Notification removed from saved list');
           if (_selectedIndex == 1) {

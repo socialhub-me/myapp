@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Import for PlatformException
-import 'dart:developer' as dev; // For logging instead of print
+import 'dart:developer'; // For logging instead of print
 import 'package:provider/provider.dart'; // Import Provider
 import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 import 'package:google_sign_in/google_sign_in.dart'; // Import Google Sign-In
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart'; // Import Facebook Auth
 import 'package:sign_in_with_apple/sign_in_with_apple.dart'; // Import Sign in with Apple
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
+import 'package:firebase_core/firebase_core.dart'; // Import Firebase Core
+
+// Comment out Firebase options until you've run flutterfire configure
+// import 'firebase_options.dart';
+
 import 'account_selection_screen.dart'; // Import the account selection screen
 import 'content_aggregation_screen.dart'; // Import content aggregation screen
 import 'models/user_data.dart'; // Import the UserData model
-import 'package:firebase_core/firebase_core.dart';
+import 'post_content_screen.dart'; // Import the post content screen (assuming it exists)
+import 'masses_social_content_screen.dart'; // Import the masses social content screen (assuming it exists)
+
 
 // Theme provider class
 class ThemeProvider extends ChangeNotifier {
@@ -26,16 +34,23 @@ class ThemeProvider extends ChangeNotifier {
     _themeMode = ThemeMode.system;
     notifyListeners();
   }
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  try {
+    // Initialize Firebase without options for now
+    await Firebase.initializeApp();
+    log('Firebase initialized successfully.');
+  } catch (e) {
+    log('Error initializing Firebase: $e. Ensure flutterfire configure has been run and google-services.json/GoogleService-Info.plist are in the correct directories.');
+  }
+
   runApp(
     ChangeNotifierProvider(
       create: (context) => ThemeProvider(),
       child: const MyApp(),
     ),
+  );
+}
   );
 }
 
@@ -76,8 +91,6 @@ class MyApp extends StatelessWidget {
           textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w500), // Use default font
         ),
       ),
-    );
-
     // Dark Theme
     final ThemeData darkTheme = ThemeData(
       useMaterial3: true,
@@ -93,11 +106,14 @@ class MyApp extends StatelessWidget {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.deepPurple[200], // Use a valid color shade
+          foregroundColor: Colors.black, // Corrected foreground color
+          backgroundColor: Colors.deepPurple[200], // Use array access instead of .shade200
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w500), // Use default font
         ),
+      ),
+    );
       ),
     );
 
@@ -108,12 +124,13 @@ class MyApp extends StatelessWidget {
       themeMode: themeProvider.themeMode,
       // Define named routes
       routes: {
-        '/': (context) => RegistrationScreen(), // Registration is the initial route
+        '/': (context) => const RegistrationScreen(), // Registration is the initial route
         '/accountSelection': (context) => const AccountSelectionScreen(), // Route to Account Selection
-        // You can add other routes here as you build more screens
-        // '/postContent': (context) => const PostContentScreen(), // Commented out: class not found
-        '/massesSocialContent': (context) => const ContentAggregationScreen(),
+        // Ensure these screens exist as placeholder files if not fully implemented yet
+        '/postContent': (context) => const PostContentScreen(), // Route to Post Content Screen
+        '/massesSocialContent': (context) => const MassesSocialContentScreen(), // Route to Masses Social Content Screen
       },
+      initialRoute: '/', // Set the initial route
     );
   }
 }
@@ -128,13 +145,33 @@ class RegistrationScreen extends StatefulWidget {
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email']);
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Get Firestore instance
+  // GoogleSignIn instance - initialize in initState
+  late GoogleSignIn _googleSignIn;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeGoogleSignIn();
+  Future<void> _initializeGoogleSignIn() async {
+    _googleSignIn = GoogleSignIn();
+    // You can set scopes later if needed
+    // _googleSignIn.scopes.addAll([
+    //   'email',
+    //   'https://www.googleapis.com/auth/youtube.readonly',
+    //   'https://www.googleapis.com/auth/drive.readonly',
+    // ]);
+  }
+    );
+  }
+
   // Helper function to navigate after successful sign-up/sign-in
   void _navigateToAccountSelection() {
+     // Check if the widget is still mounted before using context
+     if (!mounted) return;
      Navigator.pushReplacementNamed(context, '/accountSelection'); // Use pushReplacementNamed
   }
-  
-  // Helper function to save new user data to Firestore
+
   // Helper function to save new user data to Firestore
   Future<void> _saveNewUserToFirestore(User user) async {
      // Create user data object
@@ -142,27 +179,31 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         uid: user.uid,
         email: user.email ?? '',
      );
-     // TODO: Save to Firestore would go here
-     // For example: FirebaseFirestore.instance.collection('users').doc(user.uid).set(newUser.toMap());
-     dev.log('New user data saved to Firestore for ${user.email}');
+     // Save to Firestore
+     await _firestore.collection('users').doc(user.uid).set(newUser.toFirestore());
+     log('New user data saved to Firestore for ${user.email}'); // Use log
   }
-
   Future<void> _signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signInSilently() ?? await _googleSignIn.signInInteractively();
+      // Sign out any previous Google user before signing in again (optional but good practice)
+      await _googleSignIn.signOut();
+      // Use interactive sign-in
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
       if (googleUser == null) {
-        dev.log('Google sign in was aborted by the user');
+        log('Google sign-in cancelled'); // Use log
         return;
       }
       // Get authentication details
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
-      
+
       // Create a new credential
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-      
+      );
+
       // Sign in to Firebase with the credential
       UserCredential userCredential = await _auth.signInWithCredential(credential);
 
@@ -172,93 +213,105 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             await _saveNewUserToFirestore(userCredential.user!);
          }
       } else {
-        dev.log('Existing Google user signed in: ${userCredential.user!.email}');
+        log('Existing Google user signed in: ${userCredential.user!.email}'); // Use log
       }
-      
-      dev.log('Signed in with Google: ${userCredential.user!.email}');
+
+      log('Signed in with Google: ${userCredential.user!.email}'); // Use log
       // Navigate to the next screen after successful sign-in
       _navigateToAccountSelection();
 
     } catch (e) {
-      dev.log('Error signing in with Google: $e');
+      log('Error signing in with Google: $e'); // Use log
+    }
+  }
+  Future<void> _signInWithFacebook() async {
+    try {
+      // Ensure FacebookAuth is correctly initialized if needed (usually done automatically)
+      // FacebookAuth.instance.init(); // Uncomment if needed based on package docs
+
+      final LoginResult result = await FacebookAuth.instance.login(
+        permissions: ['email', 'public_profile'], // Add necessary permissions
+      );
+
+      if (result.status == LoginStatus.success) {
+        final AccessToken? accessToken = result.accessToken; // Use nullable AccessToken
+         if (accessToken == null) {
+          log('Facebook login failed: Access Token is null'); // Use log
+          return;
+        }
+
+        final OAuthCredential credential = FacebookAuthProvider.credential(accessToken.token);
+        final OAuthCredential credential = FacebookAuthProvider.credential(accessToken.token); // Use accessToken.token
+        UserCredential userCredential = await _auth.signInWithCredential(credential);
+
+        // Check if this is a new user and save data to Firestore if so
+        if (userCredential.additionalUserInfo!.isNewUser) {
+           if (userCredential.user != null) {
+              await _saveNewUserToFirestore(userCredential.user!);
+           }
+        } else {
+             log('Existing Facebook user signed in: ${userCredential.user!.displayName}'); // Use log
+        }
+
+        log('Signed in with Facebook: ${userCredential.user!.displayName}'); // Use log
+        _navigateToAccountSelection();
+
+      } else if (result.status == LoginStatus.cancelled) {
+        log('Facebook login cancelled'); // Use log
+      } else if (result.status == LoginStatus.failed) {
+        log('Facebook login failed: ${result.message}'); // Use log
+      }
+    } catch (e) {
+      log('Error signing in with Facebook: $e'); // Use log
     }
   }
 
-  Future<void> _signInWithFacebook() async {
-  Future<void> _signInWithFacebook() async {
-    try {
-      final LoginResult result = await FacebookAuth.instance.login();
-      
-      if (result.status == LoginStatus.success) {
-        final OAuthCredential credential = FacebookAuthProvider.credential(result.accessToken!.token);
-        // Once signed in, return the UserCredential
-        UserCredential userCredential = await _auth.signInWithCredential(credential);
-        
-        // Check if this is a new user and save data to Firestore if so
-        if (userCredential.additionalUserInfo!.isNewUser) {
-          if (userCredential.user != null) {
-            await _saveNewUserToFirestore(userCredential.user!);
-          }
-        } else {
-          dev.log('Existing Facebook user signed in: ${userCredential.user!.displayName}');
-        }
-        
-        dev.log('Signed in with Facebook: ${userCredential.user!.displayName}');
-        // Navigate to the next screen after successful sign-in
-        _navigateToAccountSelection();
-      } else if (result.status == LoginStatus.cancelled) {
-        dev.log('Facebook login cancelled');
-      } else {
-        dev.log('Facebook login failed: ${result.message}');
-      }
-    } catch (e) {
-      dev.log('Error signing in with Facebook: $e');
-    }
-  }
-  Future<void> _signInWithApple() async {
   Future<void> _signInWithApple() async {
     try {
       // Trigger the Apple Sign-In flow
-      // Intended future use: Use iCloud account to get media to post.
       final credential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
           AppleIDAuthorizationScopes.fullName,
         ],
+         // Add nonce and state if you are using them for security
+        // nonce: 'YOUR_NONCE',
+        // state: 'YOUR_STATE',
       );
-      
+
       // Create a Firebase credential from the Apple credential
-      final oauthCredential = OAuthProvider('apple.com').credential(
+      final OAuthProvider appleProvider = OAuthProvider('apple.com');
+      final AuthCredential firebaseCredential = appleProvider.credential(
         idToken: credential.identityToken,
         accessToken: credential.authorizationCode,
       );
-      
-      final firebaseCredential = oauthCredential;
+
       UserCredential userCredential = await _auth.signInWithCredential(firebaseCredential);
+    // Check if this is a new user and save data to Firestore if so
+    if (userCredential.additionalUserInfo!.isNewUser) {
+       if (userCredential.user != null) {
+          await _saveNewUserToFirestore(userCredential.user!);
+       }
+    } else {
+       log('Existing Apple user signed in: ${userCredential.user!.displayName}'); // Use log
+    }
 
-      // Check if this is a new user and save data to Firestore if so
-      if (userCredential.additionalUserInfo!.isNewUser) {
-         if (userCredential.user != null) {
-            await _saveNewUserToFirestore(userCredential.user!);
-         }
-      } else {
-         dev.log('Existing Apple user signed in: ${userCredential.user!.displayName}');
-      }
-      
-      dev.log('Signed in with Apple: ${userCredential.user!.displayName}');
-      // Navigate to the next screen after successful sign-in
-      _navigateToAccountSelection();
+    log('Signed in with Apple: ${userCredential.user!.displayName}'); // Use log
+    _navigateToAccountSelection();
 
-    } catch (e) {
-      dev.log('Error signing in with Apple: $e');
-      // Handle the specific error when Apple Sign-In is not supported
-      if (e is SignInWithAppleNotSupportedException || e is PlatformException) {
-        dev.log('Apple Sign-In is not supported on this device.');
-      }
+  } catch (e) {
+    log('Error signing in with Apple: $e'); // Use log
+    // Handle the specific error when Apple Sign-In is not supported
+    if (e is SignInWithAppleException || e is PlatformException) { // Check for specific Apple Sign-In exceptions or PlatformException
+      log('Apple Sign-In is not supported on this device or encountered an error: ${e.toString()}'); // Use log
+    } else {
+      log('An unexpected error occurred during Apple Sign-In: ${e.toString()}'); // Use log for unexpected errors
     }
   }
-  @override
-  Widget build(BuildContext context) {
+}
+  }\
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -276,17 +329,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                if (TargetPlatform.iOS == Theme.of(context).platform || TargetPlatform.macOS == Theme.of(context).platform)
                   ElevatedButton(
                     onPressed: _signInWithApple, // Call the Apple Sign-In function
-                    child: Text('Sign Up with Apple ID'),
+                    child: const Text('Sign Up with Apple ID'),
                   ),
-              SizedBox(height: 16), // Add some spacing
+              const SizedBox(height: 16), // Add some spacing
                ElevatedButton(
                  onPressed: _signInWithFacebook, // Call the Facebook Sign-In function
-                 child: Text('Sign Up with Facebook'),
+                 child: const Text('Sign Up with Facebook'),
                ),
-              SizedBox(height: 16), // Add some spacing
+              const SizedBox(height: 16), // Add some spacing
                ElevatedButton(
                  onPressed: _signInWithGoogle, // Call the Google Sign-In function
-                 child: Text('Sign Up with Google'),
+                 child: const Text('Sign Up with Google'),
                ),
             ],
           ),
@@ -296,4 +349,4 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 }
 
-// Note: Other screen widgets (AccountSelectionScreen, ContentAggregationScreen, PostContentScreen, MassesSocialContentScreen) are in separate files.
+  // Note: Other screen widgets (AccountSelectionScreen, ContentAggregationScreen, PostContentScreen, MassesSocialContentScreen) are in separate files.

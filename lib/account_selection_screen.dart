@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Cloud Firestore
-import 'content_aggregation_screen.dart'; // Import content aggregation screen
+// Import content aggregation screen
 
 class AccountSelectionScreen extends StatefulWidget {
   // Change to StatefulWidget
