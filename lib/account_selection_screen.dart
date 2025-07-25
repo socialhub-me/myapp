@@ -4,8 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Cloud Firestore
 import 'content_aggregation_screen.dart'; // Import content aggregation screen
 
-class AccountSelectionScreen extends StatefulWidget { // Change to StatefulWidget
-  const AccountSelectionScreen({Key? key}) : super(key: key);
+class AccountSelectionScreen extends StatefulWidget {
+  // Change to StatefulWidget
+  const AccountSelectionScreen({super.key});
 
   @override
   _AccountSelectionScreenState createState() => _AccountSelectionScreenState();
@@ -37,7 +38,8 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
         });
         print('Linked accounts saved for ${user.email}');
         // Navigate to the next screen after saving
-        Navigator.pushReplacementNamed( // Use pushReplacementNamed
+        Navigator.pushReplacementNamed(
+          // Use pushReplacementNamed
           context,
           '/contentAggregation', // Use named route
           arguments: _selectedAccounts, // Pass selected accounts as arguments
@@ -62,7 +64,8 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Select Accounts")),
-      body: Center( // Center the column
+      body: Center(
+        // Center the column
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -73,24 +76,37 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 IconButton(
-                  icon: Icon(Icons.facebook, color: _getIconColor('facebook')), // Color changes based on selection
-                  onPressed: () => _toggleAccountSelection('facebook'), // Toggle selection
+                  icon: Icon(
+                    Icons.facebook,
+                    color: _getIconColor('facebook'),
+                  ), // Color changes based on selection
+                  onPressed: () =>
+                      _toggleAccountSelection('facebook'), // Toggle selection
                 ),
                 IconButton(
-                  icon: Icon(Icons.camera_alt, color: _getIconColor('instagram')), // Color changes based on selection
-                  onPressed: () => _toggleAccountSelection('instagram'), // Toggle selection
+                  icon: Icon(
+                    Icons.camera_alt,
+                    color: _getIconColor('instagram'),
+                  ), // Color changes based on selection
+                  onPressed: () =>
+                      _toggleAccountSelection('instagram'), // Toggle selection
                 ),
                 IconButton(
-                  icon: Icon(Icons.video_library, color: _getIconColor('youtube')), // Color changes based on selection
-                  onPressed: () => _toggleAccountSelection('youtube'), // Toggle selection
+                  icon: Icon(
+                    Icons.video_library,
+                    color: _getIconColor('youtube'),
+                  ), // Color changes based on selection
+                  onPressed: () =>
+                      _toggleAccountSelection('youtube'), // Toggle selection
                 ),
                 // Add more icons as needed
               ],
             ),
             SizedBox(height: 30),
             ElevatedButton(
-              onPressed:
-                  _selectedAccounts.length >= 2 ? _saveLinkedAccounts : null, // Enable button only if at least 2 accounts are selected
+              onPressed: _selectedAccounts.length >= 2
+                  ? _saveLinkedAccounts
+                  : null, // Enable button only if at least 2 accounts are selected
               child: Text('Continue'),
             ),
           ],

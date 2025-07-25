@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class PostContentScreen extends StatelessWidget {
-  const PostContentScreen({Key? key}) : super(key: key);
+  const PostContentScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

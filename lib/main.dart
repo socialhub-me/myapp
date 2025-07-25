@@ -13,14 +13,16 @@ import 'account_selection_screen.dart'; // Import the account selection screen
 import 'content_aggregation_screen.dart'; // Import content aggregation screen
 import 'models/user_data.dart'; // Import the UserData model
 
-void main() async { // Make main async
-  WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter binding is initialized
-    // options: DefaultFirebaseOptions.currentPlatform, // Commented out due to missing firebase_options.dart
+import 'package:firebase_core/firebase_core.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   runApp(
     ChangeNotifierProvider(
-      create: (context) => ThemeProvider(), // Create a ThemeProvider
+      create: (context) => ThemeProvider(),
       child: const MyApp(),
     ),
   );
@@ -129,25 +131,25 @@ class MyApp extends StatelessWidget {
 }
 
 // Step 1: User Registration
-  const RegistrationScreen({super.key});
-  const RegistrationScreen({Key? key}) : super(key: key);
+  RegistrationScreen({super.key});
+  RegistrationScreen({Key? key}) : super(key = key);
 
   RegistrationScreenState createState() => RegistrationScreenState();
   _RegistrationScreenState createState() => _RegistrationScreenState();
 }
 class RegistrationScreenState extends State<RegistrationScreen> {
 class _RegistrationScreenState extends State<RegistrationScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn.standard(); // Use the standard constructor
-  final GoogleSignIn _googleSignIn = GoogleSignIn(); // Google Sign-In instance
+  final FirebaseAuth auth = FirebaseAuth.instance;
+  final GoogleSignIn googleSignIn = GoogleSignIn.standard(); // Use the standard constructor
+  final GoogleSignIn googleSignIn = GoogleSignIn(); // Google Sign-In instance
 
   // Helper function to navigate after successful sign-up/sign-in
-  void _navigateToAccountSelection() {
+  void navigateToAccountSelection() {
      Navigator.pushReplacementNamed(context, '/accountSelection'); // Use pushReplacementNamed
   }
 
   // Helper function to save new user data to Firestore
-  Future<void> _saveNewUserToFirestore(User user) async {
+  Future<void> saveNewUserToFirestore(User user) async {
      UserData newUser = UserData(
         uid: user.uid,
         email: user.email ?? '',
@@ -156,11 +158,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
      print('New user data saved to Firestore for ${user.email}');
   }
 
-  Future<void> _signInWithGoogle() async {
+  Future<void> signInWithGoogle() async {
     try {
       // Trigger the Google Sign-In flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signInSilently(); // Use signInSilently as signIn is not defined
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signInSilently(); // Use signInSilently as signIn is not defined
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       
       // Abort if the user cancels the sign-in
         // log('Google sign-in cancelled');
@@ -178,12 +180,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       );
       
       // Sign in to Firebase with the credential
-      UserCredential userCredential = await _auth.signInWithCredential(credential);
+      UserCredential userCredential = await auth.signInWithCredential(credential);
 
       // Save user data to Firestore if new user
       if (userCredential.additionalUserInfo!.isNewUser) {
          if (userCredential.user != null) {
-            await _saveNewUserToFirestore(userCredential.user!);
+            await saveNewUserToFirestore(userCredential.user!);
          }
            // log('Existing Google user signed in: ${userCredential.user!.email}');
            print('Existing Google user signed in: ${userCredential.user!.email}');
@@ -191,7 +193,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       // log('Signed in with Google: ${userCredential.user!.email}');
       print('Signed in with Google: ${userCredential.user!.email}');
       // Navigate to the next screen after successful sign-in
-       _navigateToAccountSelection();
+       navigateToAccountSelection();
 
     } catch (e) {
       // log('Error signing in with Google: $e');

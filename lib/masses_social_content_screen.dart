@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 class MassesSocialContentScreen extends StatelessWidget {
-  const MassesSocialContentScreen({Key? key}) : super(key: key);
+  const MassesSocialContentScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
