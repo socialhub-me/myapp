@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Import for PlatformException
-import 'package:firebase_core/firebase_core.dart';
+import 'dart:developer'; // For logging instead of print
+// import 'firebase_options.dart'; // Import the Firebase options file
 import 'firebase_options.dart'; // Import the Firebase options file
 import 'package:provider/provider.dart'; // Import Provider
 import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
@@ -14,7 +15,7 @@ import 'models/user_data.dart'; // Import the UserData model
 
 void main() async { // Make main async
   WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter binding is initialized
-  await Firebase.initializeApp(
+    // options: DefaultFirebaseOptions.currentPlatform, // Commented out due to missing firebase_options.dart
     options: DefaultFirebaseOptions.currentPlatform,
   );
   runApp(
@@ -95,7 +96,7 @@ class MyApp extends StatelessWidget {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          foregroundColor: Colors.black,
+          backgroundColor: Colors.deepPurple[200], // Use a valid color shade
           backgroundColor: primarySeedColor.shade200,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -116,8 +117,8 @@ class MyApp extends StatelessWidget {
             '/': (context) => const RegistrationScreen(), // Registration is the initial route
             '/accountSelection': (context) => const AccountSelectionScreen(), // Route to Account Selection
             // You can add other routes here as you build more screens
-             '/contentAggregation': (context) => const ContentAggregationScreen(),
-             '/postContent': (context) => const PostContentScreen(),
+            // '/postContent': (context) => const PostContentScreen(), // Commented out: class not found
+            // '/massesSocialContent': (context) => const MassesSocialContentScreen(), // Commented out: class not found
              '/massesSocialContent': (context) => const MassesSocialContentScreen(),
           },
           initialRoute: '/', // Set the initial route
@@ -128,16 +129,16 @@ class MyApp extends StatelessWidget {
 }
 
 // Step 1: User Registration
-class RegistrationScreen extends StatefulWidget { // Change to StatefulWidget
+  const RegistrationScreen({super.key});
   const RegistrationScreen({Key? key}) : super(key: key);
 
-  @override
+  RegistrationScreenState createState() => RegistrationScreenState();
   _RegistrationScreenState createState() => _RegistrationScreenState();
 }
-
+class RegistrationScreenState extends State<RegistrationScreen> {
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Get Firestore instance
+  final GoogleSignIn _googleSignIn = GoogleSignIn.standard(); // Use the standard constructor
   final GoogleSignIn _googleSignIn = GoogleSignIn(); // Google Sign-In instance
 
   // Helper function to navigate after successful sign-up/sign-in
@@ -151,23 +152,23 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         uid: user.uid,
         email: user.email ?? '',
      );
-     await _firestore.collection('users').doc(user.uid).set(newUser.toFirestore());
+     // log('New user data saved to Firestore for ${user.email}');
      print('New user data saved to Firestore for ${user.email}');
   }
 
   Future<void> _signInWithGoogle() async {
     try {
       // Trigger the Google Sign-In flow
-      // Intended future use: Establish YouTube account connection for subscriptions and access Google Drive for media.
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signInSilently(); // Use signInSilently as signIn is not defined
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       
       // Abort if the user cancels the sign-in
-      if (googleUser == null) {
+        // log('Google sign-in cancelled');
         print('Google sign-in cancelled');
         return;
       }
       
-      // Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser!.authentication;
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       
       // Create a new credential
@@ -184,16 +185,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
          if (userCredential.user != null) {
             await _saveNewUserToFirestore(userCredential.user!);
          }
-      } else {
+           // log('Existing Google user signed in: ${userCredential.user!.email}');
            print('Existing Google user signed in: ${userCredential.user!.email}');
       }
-      
+      // log('Signed in with Google: ${userCredential.user!.email}');
       print('Signed in with Google: ${userCredential.user!.email}');
       // Navigate to the next screen after successful sign-in
        _navigateToAccountSelection();
 
     } catch (e) {
-      // Handle errors
+      // log('Error signing in with Google: $e');
       print('Error signing in with Google: $e');
     }
   }
@@ -201,11 +202,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   Future<void> _signInWithFacebook() async {
     try {
       // Trigger the Facebook login flow
-      // Intended future use: Access followed creators, Instagram (and Threads) data.
+      final LoginResult result = await FacebookAuth.instance.login();
       final LoginResult result = await FlutterFacebookAuth.instance.login();
 
       if (result.status == LoginStatus.success) {
-        // Create a credential from the access token
+        final OAuthCredential credential = FacebookAuthProvider.credential(result.accessToken!.tokenString);
         final OAuthCredential credential = FacebookAuthProvider.credential(result.accessToken!.token);
         
         // Once signed in, return the UserCredential
@@ -216,20 +217,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
            if (userCredential.user != null) {
               await _saveNewUserToFirestore(userCredential.user!);
            }
-        } else {
+             // log('Existing Facebook user signed in: ${userCredential.user!.displayName}');
              print('Existing Facebook user signed in: ${userCredential.user!.displayName}');
         }
-
+        // log('Signed in with Facebook: ${userCredential.user!.displayName}');
         print('Signed in with Facebook: ${userCredential.user!.displayName}');
          // Navigate to the next screen after successful sign-in
        _navigateToAccountSelection();
 
-      } else if (result.status == LoginStatus.cancelled) {
+        // log('Facebook login cancelled');
         print('Facebook login cancelled');
-      } else if (result.status == LoginStatus.failed) {
+        // log('Facebook login failed: ${result.message}');
         print('Facebook login failed: ${result.message}');
       }
-    } catch (e) {
+      // log('Error signing in with Facebook: $e');
       print('Error signing in with Facebook: $e');
     }
   }
@@ -260,18 +261,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
          if (userCredential.user != null) {
             await _saveNewUserToFirestore(userCredential.user!);
            }
-      } else {
+           // log('Existing Apple user signed in: ${userCredential.user!.displayName}');
            print('Existing Apple user signed in: ${userCredential.user!.displayName}');
       }
-      
+      // log('Signed in with Apple: ${userCredential.user!.displayName}');
       print('Signed in with Apple: ${userCredential.user!.displayName}');
        // Navigate to the next screen after successful sign-in
        _navigateToAccountSelection();
 
-    } catch (e) {
+      // log('Error signing in with Apple: $e');
       print('Error signing in with Apple: $e');
        // Handle the specific error when Apple Sign-In is not supported
-      if (e is PlatformException && e.code == 'NOT_SUPPORTED') {
+         // log('Apple Sign-In is not supported on this device.');
          print('Apple Sign-In is not supported on this device.');
       }
     }
