@@ -1,7 +1,9 @@
 // Step 3: Content Aggregation
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart'; // Import for launching URLs
 import 'post_content_screen.dart'; // Import the post content screen
 import 'masses_social_content_screen.dart'; // Import the masses social content screen
+import 'models/content_notification.dart'; // Import the ContentNotification model
 
 class ContentAggregationScreen extends StatelessWidget {
   // Receive selected accounts as an argument
@@ -9,10 +11,64 @@ class ContentAggregationScreen extends StatelessWidget {
 
   const ContentAggregationScreen({Key? key, this.selectedAccounts}) : super(key: key);
 
+  // Function to launch a URL (deep link)
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri)) {
+      // Handle the case where the URL cannot be launched
+      print('Could not launch $url');
+      // Optionally show a user-friendly message
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Access the selected accounts passed as arguments
     final List<String> accounts = (ModalRoute.of(context)?.settings.arguments as List<String>?) ?? selectedAccounts ?? [];
+
+    // Simulate some placeholder notification data
+    final List<ContentNotification> notifications = [
+      ContentNotification(
+        creatorName: 'Creator 1',
+        title: 'New Video Dropped!',
+        timeAgo: '2 hours ago',
+        sourcePlatform: 'YouTube',
+        thumbnailUrl: '', // Placeholder for thumbnail URL
+        deepLinkUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Placeholder YouTube link
+      ),
+      ContentNotification(
+        creatorName: 'Creator 2',
+        title: 'Check out my latest post',
+        timeAgo: '1 day ago',
+        sourcePlatform: 'Instagram',
+        thumbnailUrl: '', // Placeholder for thumbnail URL
+        deepLinkUrl: 'https://www.instagram.com/', // Placeholder Instagram link
+      ),
+      ContentNotification(
+        creatorName: 'Creator 3',
+        title: 'Fresh content on my page',
+        timeAgo: '3 days ago',
+        sourcePlatform: 'Facebook',
+        thumbnailUrl: '', // Placeholder for thumbnail URL
+        deepLinkUrl: 'https://www.facebook.com/', // Placeholder Facebook link
+      ),
+       ContentNotification(
+        creatorName: 'Creator 4',
+        title: 'New Pin Alert!',
+        timeAgo: '1 hour ago',
+        sourcePlatform: 'Pinterest',
+        thumbnailUrl: '', // Placeholder for thumbnail URL
+        deepLinkUrl: 'https://www.pinterest.com/', // Placeholder Pinterest link
+      ),
+       ContentNotification(
+        creatorName: 'Creator 5',
+        title: 'TikTok video is live',
+        timeAgo: '5 hours ago',
+        sourcePlatform: 'TikTok',
+        thumbnailUrl: '', // Placeholder for thumbnail URL
+        deepLinkUrl: 'https://www.tiktok.com/', // Placeholder TikTok link
+      ),
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -47,21 +103,26 @@ class ContentAggregationScreen extends StatelessWidget {
               ),
             ),
           ),
-          // Social Media Icons Row
+          // Social Media Icons Row (Horizontally Scrollable)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // Conditionally display icons based on selected accounts
-                if (accounts.contains('apple')) Icon(Icons.apple), // Placeholder icon for Apple
-                if (accounts.contains('youtube')) Icon(Icons.video_library), // YouTube icon
-                if (accounts.contains('facebook')) Icon(Icons.facebook), // Facebook icon
-                if (accounts.contains('tiktok')) Icon(Icons.tiktok), // Placeholder icon for TikTok
-                if (accounts.contains('instagram')) Icon(Icons.camera_alt), // Instagram icon
-                if (accounts.contains('pinterest')) Icon(Icons.pinterest), // Placeholder icon for Pinterest
-                // Add more icons as needed based on your supported platforms
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start, // Align icons to the start
+                children: [
+                   SizedBox(width: 4), // Add some spacing at the beginning
+                  // Display ALL supported platform icons, with visual indication for selected ones
+                  _buildPlatformIcon('apple', Icons.apple, accounts.contains('apple')), // Apple
+                  _buildPlatformIcon('youtube', Icons.video_library, accounts.contains('youtube')), // YouTube
+                  _buildPlatformIcon('facebook', Icons.facebook, accounts.contains('facebook')), // Facebook
+                  _buildPlatformIcon('tiktok', Icons.tiktok, accounts.contains('tiktok')), // TikTok (using placeholder icon)
+                  _buildPlatformIcon('instagram', Icons.camera_alt, accounts.contains('instagram')), // Instagram (using placeholder icon)
+                  _buildPlatformIcon('pinterest', Icons.pinterest, accounts.contains('pinterest')), // Pinterest (using placeholder icon)
+                  // Add more icons for other supported platforms
+                   SizedBox(width: 4), // Add some spacing at the end
+                ],
+              ),
             ),
           ),
           // Content List Section Title
@@ -75,40 +136,34 @@ class ContentAggregationScreen extends StatelessWidget {
               ],
             ),
           ),
-          // Content List (Placeholder)
+          // Content Notifications List
           Expanded(
             child: ListView.builder(
-              itemCount: 5, // Placeholder item count
+              itemCount: notifications.length, // Use the number of placeholder notifications
               itemBuilder: (context, index) {
-                // Placeholder Content Item
+                final notification = notifications[index];
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Row(
+                  child: ListTile(
+                    leading: CircleAvatar(backgroundColor: Colors.blueGrey, child: Text(notification.creatorName[0])),
+                    title: Text(notification.title),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Creator Profile Picture (Placeholder)
-                        CircleAvatar(backgroundColor: Colors.blueGrey, child: Text('C$index')),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Creator Name $index', style: TextStyle(fontWeight: FontWeight.bold)),
-                              Text('Content Title $index'),
-                              Text('Time Ago - Source', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                        // Content Thumbnail (Placeholder)
-                        Container(
-                          width: 80,
-                          height: 60,
-                          color: Colors.grey[300],
-                          child: Center(child: Icon(Icons.play_arrow)), // Placeholder thumbnail
-                        ),
+                        Text('${notification.timeAgo} - ${notification.sourcePlatform}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                        // You might add a small icon for the source platform here as well
                       ],
                     ),
+                    trailing: Container(
+                      width: 80,
+                      height: 60,
+                      color: Colors.grey[300],
+                       child: Center(child: Icon(Icons.play_arrow)), // Placeholder thumbnail area
+                      // TODO: Display actual thumbnail using notification.thumbnailUrl
+                    ),
+                    onTap: () { // Implement tap to launch deep link
+                      _launchUrl(notification.deepLinkUrl);
+                    },
                   ),
                 );
               },
@@ -116,7 +171,7 @@ class ContentAggregationScreen extends StatelessWidget {
           ),
           // Bottom Navigation Bar
           BottomNavigationBar(
-            items: const <BottomNavigationBarItem>[
+            items: const <BottomNavigationBarBarItem>[
               BottomNavigationBarItem(
                 icon: Icon(Icons.edit), // Edit Favorites
                 label: 'Edit Favorites',
@@ -146,6 +201,25 @@ class ContentAggregationScreen extends StatelessWidget {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  // Helper widget to build platform icons with selection indication
+  Widget _buildPlatformIcon(String platformName, IconData iconData, bool isSelected) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0), // Adjust spacing
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: isSelected ? Border.all(color: Colors.blue, width: 2.0) : null, // Placeholder selected color
+        ),
+        child: CircleAvatar(
+          radius: 20, // Adjust size as needed
+          backgroundColor: Colors.grey[800], // Placeholder background color
+          child: Icon(iconData, color: isSelected ? Colors.blue : Colors.white, size: 25), // Placeholder icon color
+           // TODO: Replace with actual platform logos/icons and potentially colorful rings
+        ),
       ),
     );
   }

@@ -5,6 +5,7 @@ class ContentNotification {
   final String sourcePlatform;
   final String thumbnailUrl;
   final String deepLinkUrl;
+  bool isSaved; // Add isSaved field
   // Add creator profile picture URL if available
 
   ContentNotification({
@@ -14,5 +15,6 @@ class ContentNotification {
     required this.sourcePlatform,
     required this.thumbnailUrl,
     required this.deepLinkUrl,
+    this.isSaved = false, // Default to not saved
   });
 }
