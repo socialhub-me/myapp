@@ -26,9 +26,9 @@ class _ContentAggregationScreenState extends State<ContentAggregationScreen> {
   List<ContentNotification> _savedNotifications = []; // List to hold saved notifications
 
   // Function to launch a URL (deep link)
-  Future<void> _launchUrl(String url) async {
+  Future<void> _launchDeepLink(String url) async { // Renamed function
     final uri = Uri.parse(url);
-    if (!await launchUrl(uri)) {
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) { // Use externalApplication mode
       // Handle the case where the URL cannot be launched
       print('Could not launch $url');
       // Optionally show a user-friendly message
@@ -93,6 +93,7 @@ class _ContentAggregationScreenState extends State<ContentAggregationScreen> {
             if (userDoc.exists) {
                UserData userData = UserData.fromFirestore(userDoc.data()!);
                setState(() {
+                  // Ensure ContentNotification.fromMap factory exists in models/content_notification.dart
                   _savedNotifications = userData.savedContent.map((data) => ContentNotification.fromMap(data)).toList();
                });
             } else {
@@ -114,21 +115,40 @@ class _ContentAggregationScreenState extends State<ContentAggregationScreen> {
     return selectedAccounts.contains(platformName);
   }
 
+ // Helper to get the platform icon
+  Icon _getPlatformIcon(String platform) {
+    switch (platform.toLowerCase()) {
+      case 'apple': return const Icon(Icons.apple); // Placeholder icon for Apple
+      case 'youtube': return const Icon(Icons.video_library); // YouTube icon
+      case 'facebook': return const Icon(Icons.facebook); // Facebook icon
+      case 'tiktok': return const Icon(Icons.music_note); // TikTok icon (using placeholder)
+      case 'instagram': return const Icon(Icons.camera_alt); // Instagram icon (using placeholder)
+      case 'pinterest': return const Icon(Icons.pinterest); // Pinterest icon (using placeholder)
+      default: return const Icon(Icons.link); // Default icon
+    }
+  }
+
   // Helper widget to build platform icons with selection indication
-  Widget _buildPlatformIcon(String platformName, IconData iconData, bool isSelected) {
+  Widget _buildPlatformIcon(String platformName, bool isSelected) { // Modified to use _getPlatformIcon
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4.0), // Adjust spacing
-      child: Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: isSelected ? Border.all(color: Colors.blue, width: 2.0) : null, // Placeholder selected color
-        ),
-        child: CircleAvatar(
-          radius: 20, // Adjust size as needed
-          backgroundColor: Colors.grey[800], // Placeholder background color
-          child: Icon(iconData, color: isSelected ? Colors.blue : Colors.white, size: 25), // Placeholder icon color
-           // TODO: Replace with actual platform logos/icons and potentially colorful rings
-        ),
+      child: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: isSelected ? Border.all(color: Colors.blue, width: 2.0) : null, // Placeholder selected color
+            ),
+            child: CircleAvatar(
+              radius: 20, // Adjust size as needed
+              backgroundColor: Colors.grey[800], // Placeholder background color
+              child: _getPlatformIcon(platformName), // Use the helper to get the icon
+               // TODO: Replace with actual platform logos/icons and potentially colorful rings
+            ),
+          ),
+           const SizedBox(height: 4), // Add spacing for the label
+           Text(platformName), // Display platform name as label
+        ],
       ),
     );
   }
@@ -228,26 +248,27 @@ class _ContentAggregationScreenState extends State<ContentAggregationScreen> {
               ),
             ),
           ),
+          // Selected platforms header
+           Padding(
+             padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0), // Match horizontal padding of icons row
+             child: Align(
+               alignment: Alignment.centerLeft, // Align to the left
+               child: Text(
+                 'Tracking content from:',
+                 style: Theme.of(context).textTheme.titleMedium,
+               ),
+             ),
+           ),
           // Social Media Icons Row (Horizontally Scrollable)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-            child: SingleChildScrollView(
+          SizedBox(
+            height: 70, // Give the horizontal list a fixed height
+            child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start, // Align icons to the start
-                children: [
-                   SizedBox(width: 4), // Add some spacing at the beginning
-                  // Display ALL supported platform icons, with visual indication for selected ones
-                  _buildPlatformIcon('apple', Icons.apple, _isAccountSelected('apple', accounts)), // Apple
-                  _buildPlatformIcon('youtube', Icons.video_library, _isAccountSelected('youtube', accounts)), // YouTube
-                  _buildPlatformIcon('facebook', Icons.facebook, _isAccountSelected('facebook', accounts)), // Facebook
-                  _buildPlatformIcon('tiktok', Icons.tiktok, _isAccountSelected('tiktok', accounts)), // TikTok (using placeholder icon)
-                  _buildPlatformIcon('instagram', Icons.camera_alt, _isAccountSelected('instagram', accounts)), // Instagram (using placeholder icon)
-                  _buildPlatformIcon('pinterest', Icons.pinterest, _isAccountSelected('pinterest', accounts)), // Pinterest (using placeholder icon)
-                  // Add more icons for other supported platforms
-                   SizedBox(width: 4), // Add some spacing at the end
-                ],
-              ),
+              itemCount: accounts.length, // Use the actual number of selected accounts
+              itemBuilder: (context, index) {
+                final platform = accounts[index];
+                return _buildPlatformIcon(platform, _isAccountSelected(platform, accounts)); // Use the helper to build the icon
+              },
             ),
           ),
           // Content List Section Title
@@ -302,7 +323,7 @@ class _ContentAggregationScreenState extends State<ContentAggregationScreen> {
                       ],
                     ),
                     onTap: () { // Implement tap to launch deep link
-                      _launchUrl(notification.deepLinkUrl);
+                      _launchDeepLink(notification.deepLinkUrl); // Use the renamed function
                     },
                   ),
                 );
@@ -351,23 +372,7 @@ class _ContentAggregationScreenState extends State<ContentAggregationScreen> {
   }
 
   // Helper widget to build platform icons with selection indication
-  Widget _buildPlatformIcon(String platformName, IconData iconData, bool isSelected) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0), // Adjust spacing
-      child: Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: isSelected ? Border.all(color: Colors.blue, width: 2.0) : null, // Placeholder selected color
-        ),
-        child: CircleAvatar(
-          radius: 20, // Adjust size as needed
-          backgroundColor: Colors.grey[800], // Placeholder background color
-          child: Icon(iconData, color: isSelected ? Colors.blue : Colors.white, size: 25), // Placeholder icon color
-           // TODO: Replace with actual platform logos/icons and potentially colorful rings
-        ),
-      ),
-    );
-  }
+ // This helper was integrated into _buildPlatformIcon
 
   // Helper method to create ContentNotification from a map (for reading from Firestore)
   // Add this factory method to your ContentNotification class definition as well
