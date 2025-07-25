@@ -1,9 +1,10 @@
 class UserData {
   final String uid;
   final String email;
-  final List<String> linkedAccounts; // Add field for linked accounts
+  final List<String> linkedAccounts;
+  final List<Map<String, dynamic>> savedContent; // Add field for saved content
 
-  UserData({required this.uid, required this.email, this.linkedAccounts = const []});
+  UserData({required this.uid, required this.email, this.linkedAccounts = const [], this.savedContent = const []});
 
   // Factory method to create a UserData from a Firestore document
   factory UserData.fromFirestore(Map<String, dynamic> data) {
@@ -11,6 +12,7 @@ class UserData {
       uid: data['uid'] ?? '',
       email: data['email'] ?? '',
       linkedAccounts: List<String>.from(data['linkedAccounts'] ?? []), // Read linked accounts
+      savedContent: List<Map<String, dynamic>>.from(data['savedContent'] ?? []), // Read saved content
     );
   }
 
@@ -19,7 +21,8 @@ class UserData {
     return {
       'uid': uid,
       'email': email,
-      'linkedAccounts': linkedAccounts, // Include linked accounts
+      'linkedAccounts': linkedAccounts,
+      'savedContent': savedContent, // Include saved content
     };
   }
 }
